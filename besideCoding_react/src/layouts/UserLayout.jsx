@@ -1,8 +1,9 @@
 // src/layouts/UserLayout.jsx
 import React, { useState, useEffect, use } from "react";
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Outlet, useLocation, useNavigate, useMatch } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import ProblemNavbar from "../components/ProblemNavbar";
+import AssistantPanel from "../components/AssistantPanel";
 import Swal from "sweetalert2";
 import axios from "axios";
 import useSessionUser from "../components/useSessionUser"; // Import the new hook
@@ -11,6 +12,9 @@ const UserLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { pathname } = location;
+  const problemMatch = useMatch("/problem/:id");
+  const routeProblemId = problemMatch ? Number(problemMatch.params.id) : NaN;
+  const assistantProblemId = Number.isFinite(routeProblemId) ? routeProblemId : null;
 
   const hideNavbarRoutes = ["/", "/signin", "/signup"];
   const shouldHideNavbar = hideNavbarRoutes.includes(pathname);
@@ -66,6 +70,7 @@ const UserLayout = () => {
     <div>
       {!shouldHideNavbar && (isProblemDetailPage ? <ProblemNavbar /> : <Navbar />)}
       {user || shouldHideNavbar ? <Outlet context={{ user }} /> : null}
+      {user && !shouldHideNavbar && <AssistantPanel problemId={assistantProblemId} />}
     </div>
   );
 };

@@ -1,10 +1,13 @@
 package com.example.besideCoding.problem.controller;
 
+import com.example.besideCoding.assistant.contest.ContestLockService;
 import com.example.besideCoding.problem.dto.ProblemContributionRequestDTO;
 import com.example.besideCoding.problem.dto.ProblemResponseDTO;
 import com.example.besideCoding.problem.model.Problems;
 import com.example.besideCoding.problem.service.ProblemService;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,10 +20,12 @@ import java.util.Map;
 public class ProblemController {
 
     private final ProblemService problemService;
+    private final ContestLockService contestLockService;
 
     @Autowired
-    public ProblemController(ProblemService problemService) {
+    public ProblemController(ProblemService problemService, ContestLockService contestLockService) {
         this.problemService = problemService;
+        this.contestLockService = contestLockService;
     }
 
     @GetMapping
@@ -57,6 +62,33 @@ public class ProblemController {
         } else {
             return ResponseEntity.notFound().build();
         }
+    }
+
+    /**
+     * The written solution, kept out of the normal problem payload so it can be locked while
+     * the problem is part of a running contest.
+     */
+    @GetMapping("/{id}/solution")
+    public ResponseEntity<Map<String, String>> getSolution(@PathVariable int id, HttpSession session) {
+        Object userId = session.getAttribute("userId");
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("message", "Please log in to read solutions."));
+        }
+
+        if (contestLockService.isProblemLocked(id)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("message",
+                            "The solution is hidden while this problem is part of a live contest."));
+        }
+
+        Problems problem = problemService.getProblemById(id);
+        if (problem == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        String solution = problem.getSolution();
+        return ResponseEntity.ok(Map.of("solution", solution == null ? "" : solution));
     }
 
     @PostMapping("/contribute")

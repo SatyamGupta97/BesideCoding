@@ -73,6 +73,11 @@ const ProblemDetail = () => {
   const [showCompanies, setShowCompanies] = useState(false);
   const [isSolved, setIsSolved] = useState(false); 
 
+  // The written solution is fetched on demand because the API hides it during a live contest.
+  const [solution, setSolution] = useState(null);
+  const [solutionError, setSolutionError] = useState("");
+  const [solutionLoading, setSolutionLoading] = useState(false);
+
 
   const [userLikeStatus, setUserLikeStatus] = useState(null); 
   const [likeCount, setLikeCount] = useState(0);
@@ -98,6 +103,8 @@ const ProblemDetail = () => {
 
   useEffect(() => {
     if (problemRouteId) {
+      setSolution(null);
+      setSolutionError("");
       axios.get(`${API_BASE_URL}api/problems/${problemRouteId}`)
         .then((res) => {
           setProblem(res.data);
@@ -110,6 +117,20 @@ const ProblemDetail = () => {
         });
     }
   }, [problemRouteId]);
+
+  const loadSolution = () => {
+    if (solution !== null || solutionLoading) return;
+    setSolutionLoading(true);
+    setSolutionError("");
+    axios.get(`${API_BASE_URL}api/problems/${problemRouteId}/solution`, { withCredentials: true })
+      .then((res) => setSolution(res.data?.solution ?? ""))
+      .catch((err) => {
+        setSolutionError(
+          err?.response?.data?.message || "Could not load the solution right now."
+        );
+      })
+      .finally(() => setSolutionLoading(false));
+  };
 
   // Fetch initial like/dislike status and counts
   useEffect(() => {
@@ -296,7 +317,7 @@ const ProblemDetail = () => {
             <button className={`${tabButtonBaseClass} ${getTabButtonOverallClasses("description")}`} onClick={() => setActiveTab("description")}>
               <DocumentTextIcon className={`w-4 h-4 ${getTabIconClasses("description")}`} /> Description
             </button>
-            <button className={`${tabButtonBaseClass} ${getTabButtonOverallClasses("solution")}`} onClick={() => setActiveTab("solution")}>
+            <button className={`${tabButtonBaseClass} ${getTabButtonOverallClasses("solution")}`} onClick={() => { setActiveTab("solution"); loadSolution(); }}>
               <CodeBracketIcon className={`w-4 h-4 ${getTabIconClasses("solution")}`} /> Solution
             </button>
           </div>
@@ -341,9 +362,13 @@ const ProblemDetail = () => {
             {activeTab === "solution" && (
               <div className="p-4">
                 <h2 className="text-xl font-semibold mb-3">Solution</h2>
-                {problem.solution ? (
+                {solutionLoading ? (
+                  <p className="text-gray-400">Loading solution...</p>
+                ) : solutionError ? (
+                  <p className="text-red-300">{solutionError}</p>
+                ) : solution ? (
                   <pre className="whitespace-pre-wrap text-sm border border-neutral-600 bg-[#252526] rounded p-4 leading-relaxed">
-                    {problem.solution}
+                    {solution}
                   </pre>
                 ) : (<p className="text-gray-400">Solution not available yet.</p>)}
               </div>
